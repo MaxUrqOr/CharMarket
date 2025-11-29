@@ -1,65 +1,271 @@
-import Image from "next/image";
+'use client';
+
+import { useEffect, useState } from 'react';
+import { TipoEvento } from '@/models/TipoEvento';
+import { getAuth, signInAnonymously } from 'firebase/auth';
 
 export default function Home() {
+  const [config, setConfig] = useState<[string, string[]][]>([]);
+  const [selectedEvent, setSelectedEvent] = useState<TipoEvento>(TipoEvento.CONFIRMACION_PEDIDO);
+
+  const [destinatarios, setDestinatarios] = useState({
+    email: "",
+    telefono: "",
+    pushToken: ""
+  });
+
+  const [asunto, setAsunto] = useState('¡Tu pedido ha sido confirmado!');
+  const [mensaje, setMensaje] = useState('Gracias por tu compra. Tu pedido #12345 está siendo preparado.');
+  const [canalesEvento, setCanalesEvento] = useState<string[]>([]);
+
+  // Obtener la configuración de canales
+  const fetchConfig = async () => {
+    try {
+      const response = await fetch('/api/notificaciones');
+      if (response.ok) {
+        const data = await response.json();
+        setConfig(Object.entries(data));
+      }
+    } catch (error) {
+      console.error("Error al obtener la configuración:", error);
+    }
+  };
+
+  useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker
+        .register("/firebase-messaging-sw.js")
+        .then(reg => console.log("✔️ Service Worker registrado:", reg))
+        .catch(err => console.error("❌ Error registrando SW:", err));
+    }
+  }, []);
+
+  // Obtener token FCM --> aun no se encuentra la causa de error al obtener el token
+  useEffect(() => {
+    fetchConfig();
+
+    const autenticarYObtenerToken = async () => {
+      try {
+        const { app, obtenerTokenFCM } = await import("@/utils/firebaseClient");
+        const auth = getAuth(app);
+        await signInAnonymously(auth);
+        console.log('Usuario autenticado anónimamente.');
+
+        console.log("🔄 Llamando a obtenerTokenFCM()...");
+        const token = await obtenerTokenFCM();
+        console.log("📩 Token devuelto al componente:", token);
+        if (token) {
+          sessionStorage.setItem("fcm_token", token);
+          // Actualizar el estado para que la UI refleje el nuevo token
+          setDestinatarios(prev => ({ ...prev, pushToken: token }));
+        } else {
+          console.log('No se pudo obtener el token FCM.');
+        }
+      } catch (error) {
+        console.error("Error durante la autenticación o la obtención del token:", error);
+        alert(`Error al obtener token: ${(error as Error).message}`);
+      }
+    };
+
+    autenticarYObtenerToken();
+  }, []);
+
+  useEffect(() => {
+    const fila = config.find(([evento]) => evento === selectedEvent);
+    const canales = fila ? fila[1] : [];
+
+    setCanalesEvento(canales);
+
+    const dest: any = {
+      email: "",
+      telefono: "",
+      pushToken: ""
+    };
+
+    canales.forEach((canal) => {
+      if (canal === "Email") dest.email = "";
+      if (canal === "SMS" || canal === "WhatsApp") dest.telefono = "";
+      if (canal === "Push") dest.pushToken = sessionStorage.getItem("fcm_token") || "";
+    });
+
+    setDestinatarios(dest);
+  }, [selectedEvent, config]);
+
+  // 🔥 Enviar notificación
+  const handleSendNotification = async () => {
+    const { email, telefono, pushToken } = destinatarios;
+
+    if (!email && !telefono && !pushToken) {
+      alert("Debe ingresar al menos un dato de contacto.");
+      return;
+    }
+
+    const payload = {
+      tipoEvento: selectedEvent,
+      email: email || null,
+      telefono: telefono || null,
+      pushToken: pushToken || null,
+      asunto,
+      mensaje
+    };
+
+    try {
+      const response = await fetch('/api/notificaciones', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        alert('¡Notificación enviada exitosamente!');
+      } else {
+        const error = await response.json();
+        alert(`Error al enviar notificación: ${error.details || error.error}`);
+      }
+    } catch (error) {
+      console.error("Error al enviar notificación:", error);
+      alert('Ocurrió un error al contactar la API.');
+    }
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <main className="min-h-screen w-full bg-gray-950 text-gray-100 p-10">
+      
+      <div className="max-w-5xl mx-auto space-y-10">
+  
+        {/* ENCABEZADO */}
+        <header className="text-center pb-6 border-b border-gray-700">
+          <h1 className="text-5xl font-bold tracking-tight bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">
+            Centro de Notificaciones
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="text-gray-400 mt-2 text-lg">
+            Envía notificaciones por Email, SMS, WhatsApp o Push.
           </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+        </header>
+  
+        {/* FORMULARIO */}
+        <section className="bg-gray-900/50 backdrop-blur-lg border border-gray-800 p-8 rounded-2xl shadow-xl space-y-6">
+          
+          <h2 className="text-3xl font-semibold text-blue-300">Enviar Notificación</h2>
+  
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+  
+            {/* Tipo de Evento */}
+            <div className="space-y-2">
+              <label className="text-gray-300 text-sm">Tipo de Evento</label>
+              <select
+                value={selectedEvent}
+                onChange={(e) => setSelectedEvent(e.target.value as TipoEvento)}
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none"
+              >
+                {Object.values(TipoEvento).map(evento => (
+                  <option key={evento} value={evento}>{evento}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Destinatarios */}
+            {canalesEvento.includes("Email") && (
+              <div className="space-y-2">
+                <label className="text-gray-300 text-sm">Correo Electrónico</label>
+                <input
+                  type="email"
+                  placeholder="ejemplo@correo.com"
+                  value={destinatarios.email}
+                  onChange={(e) => setDestinatarios(prev => ({ ...prev, email: e.target.value }))}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg p-2"
+                />
+              </div>
+            )}
+
+            {(canalesEvento.includes("SMS") || canalesEvento.includes("WhatsApp")) && (
+              <div className="space-y-2">
+                <label className="text-gray-300 text-sm">Número de Teléfono</label>
+                <input
+                  type="text"
+                  placeholder="+51999999999"
+                  value={destinatarios.telefono}
+                  onChange={(e) => setDestinatarios(prev => ({ ...prev, telefono: e.target.value }))}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg p-2"
+                />
+              </div>
+            )}
+
+            {canalesEvento.includes("Push") && (
+              <div className="space-y-2">
+                <label className="text-gray-300 text-sm">Token Push FCM</label>
+                <input
+                  type="text"
+                  disabled
+                  value={destinatarios.pushToken}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg p-2 text-gray-400"
+                />
+                <p className="text-gray-500 text-xs">Token obtenido automáticamente.</p>
+              </div>
+            )}
+  
+            {/* Asunto */}
+            <div className="md:col-span-2 space-y-2">
+              <label className="text-gray-300 text-sm">Asunto</label>
+              <input
+                type="text"
+                value={asunto}
+                onChange={(e) => setAsunto(e.target.value)}
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg p-2"
+              />
+            </div>
+  
+            {/* Mensaje */}
+            <div className="md:col-span-2 space-y-2">
+              <label className="text-gray-300 text-sm">Mensaje</label>
+              <textarea
+                rows={4}
+                value={mensaje}
+                onChange={(e) => setMensaje(e.target.value)}
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg p-3"
+              />
+            </div>
+          </div>
+  
+          {/* Botón */}
+          <div className="pt-4 flex justify-end">
+            <button
+              onClick={handleSendNotification}
+              className="bg-blue-600 hover:bg-blue-700 transition px-6 py-2 rounded-xl font-semibold shadow-lg shadow-blue-900/40"
+            >
+              Enviar Notificación
+            </button>
+          </div>
+        </section>
+  
+        {/* CONFIGURACIÓN */}
+        <section className="bg-gray-900/50 border border-gray-800 p-8 rounded-2xl shadow-xl">
+          <h2 className="text-3xl font-semibold mb-4 text-blue-300">Configuración de Canales por Evento</h2>
+  
+          <div className="overflow-x-auto">
+            <table className="min-w-full bg-gray-800 border border-gray-700 rounded-xl overflow-hidden">
+              <thead className="bg-gray-700 text-gray-300">
+                <tr>
+                  <th className="py-3 px-4 text-left">Evento</th>
+                  <th className="py-3 px-4 text-left">Canales</th>
+                </tr>
+              </thead>
+              <tbody>
+                {config.map(([evento, canales], index) => (
+                  <tr
+                    key={evento}
+                    className={index % 2 === 0 ? "bg-gray-800/70" : "bg-gray-800/40"}
+                  >
+                    <td className="py-3 px-4">{evento}</td>
+                    <td className="py-3 px-4">{canales.join(', ')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+  
+      </div>
+    </main>
   );
 }

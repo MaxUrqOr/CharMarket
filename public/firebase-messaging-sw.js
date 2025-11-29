@@ -2,12 +2,12 @@ importScripts("https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"
 importScripts("https://www.gstatic.com/firebasejs/9.6.10/firebase-messaging-compat.js");
 
 const firebaseConfig = {
-  apiKey: "AIzaSyC9-NjiiwdFUqs7jGRXerkp4XTpo-KIYAI",
-  authDomain: "chamarket-10c31.firebaseapp.com",
-  projectId: "chamarket-10c31",
-  storageBucket: "chamarket-10c31.firebasestorage.app",
-  messagingSenderId: "881220557896",
-  appId: "1:881220557896:web:1a13465b593c7ca998cc7d"
+  apiKey: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  authDomain: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  projectId: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  storageBucket: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  messagingSenderId: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  appId: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 };
 
 firebase.initializeApp(firebaseConfig);

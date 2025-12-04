@@ -1,0 +1,49 @@
+{
+  "NotificationEventDTO": {
+    "type": "object",
+    "properties": {
+      "titulo": { "type": "string" },
+      "detalle": { "type": "string" },
+      "estado": { "type": "string" },
+      "plantilla": { "type": "string" },
+      "canal": { "type": "array", "items": { "type": "string" } },
+      "intento": { "type": "integer" },
+      "metaData": {
+        "type": "object",
+        "additionalProperties": { "type": "string" }
+      }
+    },
+    "required": ["titulo", "detalle", "estado", "plantilla", "canal", "intento"]
+  },
+
+  "RenderedContentDTO": {
+    "type": "object",
+    "properties": {
+      "template": { "type": "string" },
+      "respuesta": { "type": "boolean" },
+      "metaData": {
+        "type": "object",
+        "additionalProperties": { "type": "string" }
+      }
+    },
+    "required": ["template", "metaData", "respuesta"]
+  },
+
+  "PersistNotificationDTO": {
+    "type": "object",
+    "properties": {
+      "id_remitente": { "type": "integer" },
+      "id_destinatario": { "type": "integer" },
+      "titulo": { "type": "string" },
+      "detalle": { "type": "string" },
+      "estado": { "type": "string" },
+      "canal": { "type": "string" },
+      "template": { "type": "string" },
+      "metaData": {
+        "type": "object",
+        "additionalProperties": { "type": "string" }
+      }
+    },
+    "required": ["id_remitente", "id_destinatario", "titulo", "detalle", "estado", "canal", "metaData"]
+  }
+}
